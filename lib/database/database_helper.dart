@@ -24,25 +24,24 @@ class DatabaseHelper {
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE students(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        username TEXT,
-        email TEXT,
-        phone TEXT,
-        password TEXT,
-        address TEXT,
-        year TEXT
+        student_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL,
+        year TEXT,
+        dept_name TEXT,
+        field_of_interest TEXT,
+        clubs_joined TEXT,
+        contact_info TEXT
       )
     ''');
   }
 
-  // ✅ Add this method
   Future<int> insertStudent(Student student) async {
     final db = await database;
     return await db.insert('students', student.toMap());
   }
 
-  // Add loginStudent if you want login to work
   Future<Student?> loginStudent(String email, String password) async {
     final db = await database;
     final maps = await db.query(
@@ -54,5 +53,15 @@ class DatabaseHelper {
       return Student.fromMap(maps.first);
     }
     return null;
+  }
+
+  Future<int> updateClubsJoined(int studentId, String clubsJoined) async {
+    final db = await database;
+    return await db.update(
+      'students',
+      {'clubs_joined': clubsJoined},
+      where: 'student_id = ?',
+      whereArgs: [studentId],
+    );
   }
 }
