@@ -36,11 +36,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _navigateToWelcome() async {
-    // Wait for the animation to complete and the specified duration
     await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
     
-    // Navigate to the welcome screen with a fade transition
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
@@ -64,11 +62,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     return Scaffold(
       body: Stack(
         children: [
-          // Background with decorative waves
+          // Background with slightly deeper light green
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFFFFF9F0), Color(0xFFFFF5E8)],
+                colors: [
+                  Color(0xFFD4E9D4), // deeper light green (top)
+                  Color(0xFFE0F2E0), // lighter green (bottom)
+                ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),
@@ -76,30 +77,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           ),
 
           // Top wave decoration
-          Positioned(
-            top: -50,
-            left: -50,
-            right: 100,
-            child: CustomPaint(
-              size: Size(MediaQuery.of(context).size.width, 250),
-              painter: WavePainter(
-                color: const Color(0xFFFFD9A8).withOpacity(0.3),
-              ),
-            ),
-          ),
+Positioned(
+  top: -50,
+  left: -50,
+  right: 100,
+  child: CustomPaint(
+    size: Size(MediaQuery.of(context).size.width, 250),
+    painter: WavePainter(
+      color: const Color(0xFF4A6FA5).withOpacity(0.3), // light navy blue
+    ),
+  ),
+),
 
-          // Bottom wave decoration
-          Positioned(
-            bottom: -50,
-            left: 50,
-            right: -100,
-            child: CustomPaint(
-              size: Size(MediaQuery.of(context).size.width, 250),
-              painter: WavePainter(
-                color: const Color(0xFFFFE4B8).withOpacity(0.3),
-              ),
-            ),
-          ),
+// Bottom wave decoration
+Positioned(
+  bottom: -50,
+  left: 50,
+  right: -100,
+  child: CustomPaint(
+    size: Size(MediaQuery.of(context).size.width, 250),
+    painter: WavePainter(
+      color: const Color(0xFF4A6FA5).withOpacity(0.3), // light navy blue
+    ),
+  ),
+),
+
 
           // Center content with animation
           Center(
@@ -140,28 +142,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                     const SizedBox(height: 40),
                     
-                    // App name with custom styling and Poppins font
-                    ShaderMask(
-                      shaderCallback: (bounds) => LinearGradient(
-                        colors: [
-                          AppColors.primary,
-                          AppColors.primary.withOpacity(0.8),
-                        ],
-                      ).createShader(bounds),
-                      child: const Text(
-                        'ClubHub',
-                        style: TextStyle(
-                          fontSize: 56,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 2,
-                          fontFamily: 'Poppins', // Poppins added here
-                        ),
+                    // App name in navy blue
+                    const Text(
+                      'ClubHub',
+                      style: TextStyle(
+                        fontSize: 56,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A2B4A), // navy blue
+                        letterSpacing: 2,
+                        fontFamily: 'Poppins',
                       ),
                     ),
                     const SizedBox(height: 12),
                     
-                    // Subtitle with Poppins font
+                    // Subtitle
                     Text(
                       'CONNECT & ENGAGE',
                       style: TextStyle(
@@ -169,7 +163,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         fontWeight: FontWeight.w600,
                         color: AppColors.textSecondary,
                         letterSpacing: 4,
-                        fontFamily: 'Poppins', // Poppins added here
+                        fontFamily: 'Poppins',
                       ),
                     ),
                     const SizedBox(height: 50),
