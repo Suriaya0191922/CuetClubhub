@@ -1,47 +1,51 @@
 class Student {
-  final int? id;
-  final String name;
-  final String username;
-  final String email;
-  final String phone;
-  final String password;
-  final String address;
-  final String year;
+  int? studentId;
+  String name;
+  String email;
+  String password; // ✅ add this
+  String? year;
+  String? deptName;
+  String? fieldOfInterest;
+  String? clubsJoined;
+  String? contactInfo;
 
   Student({
-    this.id,
+    this.studentId,
     required this.name,
-    required this.username,
     required this.email,
-    required this.phone,
-    required this.password,
-    required this.address,
-    required this.year,
+    required this.password, // ✅ add this
+    this.year,
+    this.deptName,
+    this.fieldOfInterest,
+    this.clubsJoined,
+    this.contactInfo,
   });
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
+      'student_id': studentId,
       'name': name,
-      'username': username,
       'email': email,
-      'phone': phone,
-      'password': password,
-      'address': address,
+      'password': password, // ✅ add this
       'year': year,
+      'dept_name': deptName,
+      'field_of_interest': fieldOfInterest,
+      'clubs_joined': clubsJoined,
+      'contact_info': contactInfo,
     };
   }
 
   factory Student.fromMap(Map<String, dynamic> map) {
     return Student(
-      id: map['id'],
+      studentId: map['student_id'],
       name: map['name'],
-      username: map['username'],
       email: map['email'],
-      phone: map['phone'],
-      password: map['password'],
-      address: map['address'],
+      password: map['password'], // ✅ add this
       year: map['year'],
+      deptName: map['dept_name'],
+      fieldOfInterest: map['field_of_interest'],
+      clubsJoined: map['clubs_joined'],
+      contactInfo: map['contact_info'],
     );
   }
 }
