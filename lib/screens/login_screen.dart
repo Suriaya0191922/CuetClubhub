@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/app_colors.dart';
-import '../database/database_helper.dart';
 import 'signup_screen.dart';
 import 'home_screen.dart';
 import '../models/student.dart';
@@ -17,6 +17,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -34,23 +37,23 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      if (kIsWeb) {
-        // For web/demo
-        await Future.delayed(const Duration(seconds: 1));
+      // Sign in with Firebase Authentication
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-        final student = Student(
-          studentId: 1,
-          name: 'Test User',
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(), // ✅ fixed
-          year: '3rd',
-          deptName: 'CSE',
-          fieldOfInterest: 'Coding, Gaming',
-          clubsJoined: null,
-          contactInfo: '01712345678',
-        );
+      // Fetch student data from Firestore
+      DocumentSnapshot doc = await _firestore
+          .collection('students')
+          .doc(userCredential.user!.uid)
+          .get();
 
-        if (!mounted) return;
+      if (!mounted) return;
+
+      if (doc.exists) {
+        final student = Student.fromFirestore(doc);
+        student.email = _emailController.text.trim();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -64,35 +67,35 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (context) => HomeScreen(student: student)),
         );
       } else {
-        // Mobile/Desktop
-        final student = await DatabaseHelper.instance.loginStudent(
-          _emailController.text.trim(),
-          _passwordController.text.trim(),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('User data not found!'),
+            backgroundColor: Colors.red,
+          ),
         );
-
-        if (!mounted) return;
-
-        if (student != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login successful!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => HomeScreen(student: student)),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Invalid email or password!'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
       }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+
+      String errorMessage = 'Login failed!';
+      if (e.code == 'user-not-found') {
+        errorMessage = 'No user found for this email.';
+      } else if (e.code == 'wrong-password') {
+        errorMessage = 'Wrong password provided.';
+      } else if (e.code == 'invalid-email') {
+        errorMessage = 'Invalid email address.';
+      } else if (e.code == 'user-disabled') {
+        errorMessage = 'This user account has been disabled.';
+      } else if (e.code == 'invalid-credential') {
+        errorMessage = 'Invalid email or password.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -103,6 +106,47 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    if (_emailController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter your email address first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      await _auth.sendPasswordResetEmail(email: _emailController.text.trim());
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Password reset email sent! Check your inbox.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      
+      String errorMessage = 'Failed to send reset email';
+      if (e.code == 'user-not-found') {
+        errorMessage = 'No user found for this email.';
+      } else if (e.code == 'invalid-email') {
+        errorMessage = 'Invalid email address.';
+      }
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(errorMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -143,22 +187,51 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 24),
                       Text(
                         'ClubHub',
-                        style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, color: AppColors.primary, letterSpacing: 2),
+                        style: TextStyle(
+                          fontSize: 42,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                          letterSpacing: 2,
+                        ),
                       ),
                       Text(
                         'CONNECT & ENGAGE',
-                        style: TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600, letterSpacing: 2),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 2,
+                        ),
                       ),
                       const SizedBox(height: 50),
-                      Text('Welcome back!', style: TextStyle(fontSize: 18, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                      Text(
+                        'Welcome back!',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       const SizedBox(height: 24),
-                      Text('Login', style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: AppColors.primary)),
+                      Text(
+                        'Login',
+                        style: TextStyle(
+                          fontSize: 34,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
                       const SizedBox(height: 40),
-                      _buildTextField(controller: _emailController, hintText: 'Email address', icon: Icons.email_outlined, validator: (value) {
-                        if (value == null || value.isEmpty) return 'Please enter your email';
-                        if (!value.contains('@')) return 'Please enter a valid email';
-                        return null;
-                      }),
+                      _buildTextField(
+                        controller: _emailController,
+                        hintText: 'Email address',
+                        icon: Icons.email_outlined,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) return 'Please enter your email';
+                          if (!value.contains('@')) return 'Please enter a valid email';
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: 20),
                       _buildTextField(
                         controller: _passwordController,
@@ -166,7 +239,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Icons.lock_outline,
                         obscureText: _obscurePassword,
                         suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.primary),
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: AppColors.primary,
+                          ),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                         ),
                         validator: (value) {
@@ -187,23 +263,45 @@ class _LoginScreenState extends State<LoginScreen> {
                             elevation: 2,
                           ),
                           child: _isLoading
-                              ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
-                              : const Text('Login', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                              ? const SizedBox(
+                                  height: 22,
+                                  width: 22,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                                ),
                         ),
                       ),
                       const SizedBox(height: 20),
                       TextButton(
-                        onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Contact admin to reset your credentials'), backgroundColor: Colors.blue),
+                        onPressed: _resetPassword,
+                        child: Text(
+                          'Forgot your password?',
+                          style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
                         ),
-                        child: Text('Forgot your credentials?', style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
                       ),
                       const SizedBox(height: 40),
-                      Row(children: [
-                        Expanded(child: Divider(color: AppColors.secondaryBackground, thickness: 1)),
-                        Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: Text('OR', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600))),
-                        Expanded(child: Divider(color: AppColors.secondaryBackground, thickness: 1)),
-                      ]),
+                      Row(
+                        children: [
+                          Expanded(child: Divider(color: AppColors.secondaryBackground, thickness: 1)),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              'OR',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Expanded(child: Divider(color: AppColors.secondaryBackground, thickness: 1)),
+                        ],
+                      ),
                       const SizedBox(height: 32),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -219,10 +317,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text("Don't have an account? ", style: TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+                          Text(
+                            "Don't have an account? ",
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                          ),
                           TextButton(
-                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const SignupScreen())),
-                            child: Text('Sign Up', style: TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold, fontSize: 14)),
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (context) => const SignupScreen()),
+                            ),
+                            child: Text(
+                              'Sign Up',
+                              style: TextStyle(
+                                color: AppColors.accent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -249,7 +360,10 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.secondaryBackground.withOpacity(0.5), width: 1.5),
+        border: Border.all(
+          color: AppColors.secondaryBackground.withOpacity(0.5),
+          width: 1.5,
+        ),
       ),
       child: TextFormField(
         controller: controller,
@@ -258,7 +372,10 @@ class _LoginScreenState extends State<LoginScreen> {
           hintText: hintText,
           prefixIcon: Icon(icon, color: AppColors.primary, size: 22),
           suffixIcon: suffixIcon,
-          hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.6), fontSize: 15),
+          hintStyle: TextStyle(
+            color: AppColors.textSecondary.withOpacity(0.6),
+            fontSize: 15,
+          ),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
@@ -274,8 +391,17 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.secondaryBackground.withOpacity(0.4), width: 1.5),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
+        border: Border.all(
+          color: AppColors.secondaryBackground.withOpacity(0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          )
+        ],
       ),
       child: Icon(icon, color: color, size: 28),
     );
@@ -291,8 +417,18 @@ class WavePainter extends CustomPainter {
     final paint = Paint()..color = color..style = PaintingStyle.fill;
     final path = Path();
     path.moveTo(0, size.height * 0.5);
-    path.quadraticBezierTo(size.width * 0.25, size.height * 0.7, size.width * 0.5, size.height * 0.5);
-    path.quadraticBezierTo(size.width * 0.75, size.height * 0.3, size.width, size.height * 0.5);
+    path.quadraticBezierTo(
+      size.width * 0.25,
+      size.height * 0.7,
+      size.width * 0.5,
+      size.height * 0.5,
+    );
+    path.quadraticBezierTo(
+      size.width * 0.75,
+      size.height * 0.3,
+      size.width,
+      size.height * 0.5,
+    );
     path.lineTo(size.width, 0);
     path.lineTo(0, 0);
     path.close();
